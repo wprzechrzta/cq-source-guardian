@@ -5,6 +5,8 @@ import (
 	"testing"
 )
 
+const maxPages = 3
+
 func TestSearch(t *testing.T) {
 	apiKey := os.Getenv("GUARDIAN_API_KEY")
 	t.Logf("client: %+v", apiKey)
@@ -16,12 +18,13 @@ func TestSearch(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to search: %v", err)
 	}
-	t.Logf("fetched articles: %d, pages: %d", len(resp.Response.Results), resp.Response.Pages)
+	if resp.Response.Status != "ok" {
+		t.Errorf("failed to search, status: %s", resp.Response.Status)
+	}
 }
 
 func TestFetchPage(t *testing.T) {
 	apiKey := os.Getenv("GUARDIAN_API_KEY")
-	t.Logf("client: %+v", apiKey)
 	client, err := NewClient(WithAPIKey(apiKey))
 	if err != nil {
 		t.Fatalf("failed to create client: %v", err)
@@ -31,7 +34,7 @@ func TestFetchPage(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to search: %v", err)
 	}
-	maxCount := 3
+	maxCount := maxPages
 	startIndex := resp.Response.StartIndex
 	if resp.Response.Pages < maxCount {
 		maxCount = resp.Response.Pages
@@ -45,5 +48,7 @@ func TestFetchPage(t *testing.T) {
 		results = append(results, page...)
 	}
 
-	t.Logf("fetched articles: %d", len(results))
+	if len(results) == 0 {
+		t.Errorf("no  results found")
+	}
 }

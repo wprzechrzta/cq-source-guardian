@@ -36,12 +36,11 @@ func Configure(_ context.Context, logger zerolog.Logger, spec []byte, opts plugi
 	}
 
 	config := &client.Spec{}
-	logger.Info().Msg("loading plugin configuration")
 	if err := json.Unmarshal(spec, config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal spec: %w", err)
 	}
 	config.SetDefaults()
-	logger.Info().Msgf("---config: %+v", config)
+
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("failed to validate spec: %w", err)
 	}

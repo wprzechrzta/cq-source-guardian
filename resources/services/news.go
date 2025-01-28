@@ -8,6 +8,8 @@ import (
 	news "github.com/wprzechrzta/cq-source-guardian/internal"
 )
 
+const maxPages = 3
+
 func NewsTable() *schema.Table {
 	return &schema.Table{
 		Name:     "guardian_news",
@@ -18,7 +20,7 @@ func NewsTable() *schema.Table {
 	}
 }
 
-func fetchNews(ctx context.Context, meta schema.ClientMeta, parent *schema.Resource, res chan<- any) error {
+func fetchNews(_ context.Context, meta schema.ClientMeta, parent *schema.Resource, res chan<- any) error {
 	cl := meta.(*client.Client)
 
 	term := "deep seek r1"
@@ -26,7 +28,7 @@ func fetchNews(ctx context.Context, meta schema.ClientMeta, parent *schema.Resou
 	if err != nil {
 		return err
 	}
-	const maxPages = 3
+
 	total := 0
 	for i := resp.Response.StartIndex; i < resp.Response.StartIndex+maxPages; i++ {
 		itemPage, err := cl.News.FetchPage(term, i)
