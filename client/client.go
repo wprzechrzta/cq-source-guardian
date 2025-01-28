@@ -1,31 +1,26 @@
 package client
 
 import (
-	"context"
+	"github.com/cloudquery/plugin-sdk/v4/schema"
+	news "github.com/wprzechrzta/cq-source-guardian/internal"
 
 	"github.com/rs/zerolog"
 )
 
 type Client struct {
-	logger zerolog.Logger
+	Logger zerolog.Logger
 	Spec   Spec
+	News   *news.Client
 }
 
 func (c *Client) ID() string {
-	// TODO: Change to either your plugin name or a unique dynamic identifier
-	return "ID"
+	return "news"
 }
 
-func (c *Client) Logger() *zerolog.Logger {
-	return &c.logger
-}
-
-func New(ctx context.Context, logger zerolog.Logger, s *Spec) (Client, error) {
-	// TODO: Add your client initialization here
-	c := Client{
-		logger: logger,
-		Spec:   *s,
+func New(logger zerolog.Logger, spec Spec, services *news.Client) schema.ClientMeta {
+	return &Client{
+		Logger: logger,
+		Spec:   spec,
+		News:   services,
 	}
-
-	return c, nil
 }

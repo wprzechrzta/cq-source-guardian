@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	news "github.com/wprzechrzta/cq-source-guardian/internal"
 
 	"github.com/cloudquery/plugin-sdk/v4/message"
 	"github.com/cloudquery/plugin-sdk/v4/plugin"
@@ -16,42 +17,48 @@ import (
 )
 
 type Client struct {
-	logger     zerolog.Logger
-	config     client.Spec
-	tables     schema.Tables
-	syncClient *client.Client
-	scheduler  *scheduler.Scheduler
+	logger    zerolog.Logger
+	config    client.Spec
+	tables    schema.Tables
+	scheduler *scheduler.Scheduler
+	services  *news.Client
 
 	plugin.UnimplementedDestination
 }
 
-func Configure(ctx context.Context, logger zerolog.Logger, spec []byte, opts plugin.NewClientOptions) (plugin.Client, error) {
+func Configure(_ context.Context, logger zerolog.Logger, spec []byte, opts plugin.NewClientOptions) (plugin.Client, error) {
 	if opts.NoConnection {
 		return &Client{
-			logger: logger,
+			logger: logger.With().Str("module", "news").Logger(),
+
 			tables: getTables(),
 		}, nil
 	}
 
 	config := &client.Spec{}
+	logger.Info().Msg("loading plugin configuration")
 	if err := json.Unmarshal(spec, config); err != nil {
 		return nil, fmt.Errorf("failed to unmarshal spec: %w", err)
 	}
 	config.SetDefaults()
+	logger.Info().Msgf("---config: %+v", config)
 	if err := config.Validate(); err != nil {
 		return nil, fmt.Errorf("failed to validate spec: %w", err)
 	}
 
-	syncClient, err := client.New(ctx, logger, config)
+	newsClient, err := news.NewClient(news.WithAPIKey(config.Key))
 	if err != nil {
-		return nil, fmt.Errorf("failed to create client: %w", err)
+		return nil, err
 	}
+
 	return &Client{
-		logger:     logger,
-		config:     *config,
-		tables:     getTables(),
-		syncClient: &syncClient,
-		scheduler:  scheduler.NewScheduler(scheduler.WithLogger(logger)),
+		logger:   logger.With().Str("module", "news").Logger(),
+		config:   *config,
+		tables:   getTables(),
+		services: newsClient,
+		scheduler: scheduler.NewScheduler(
+			scheduler.WithLogger(logger),
+			scheduler.WithConcurrency(3)),
 	}, nil
 }
 
@@ -61,7 +68,13 @@ func (c *Client) Sync(ctx context.Context, options plugin.SyncOptions, res chan<
 		return err
 	}
 
-	return c.scheduler.Sync(ctx, c.syncClient, tt, res, scheduler.WithSyncDeterministicCQID(options.DeterministicCQID))
+	schedulerClient := client.New(c.logger, c.config, c.services)
+
+	eff := c.scheduler.Sync(ctx, schedulerClient, tt, res, scheduler.WithSyncDeterministicCQID(options.DeterministicCQID))
+	if eff != nil {
+		return fmt.Errorf("failed to sync: %w", eff)
+	}
+	return nil
 }
 
 func (c *Client) Tables(_ context.Context, options plugin.TableOptions) (schema.Tables, error) {
@@ -74,13 +87,12 @@ func (c *Client) Tables(_ context.Context, options plugin.TableOptions) (schema.
 }
 
 func (*Client) Close(_ context.Context) error {
-	// TODO: Add your client cleanup here
 	return nil
 }
 
 func getTables() schema.Tables {
 	tables := schema.Tables{
-		services.SampleTable(),
+		services.NewsTable(),
 	}
 	if err := transformers.TransformTables(tables); err != nil {
 		panic(err)

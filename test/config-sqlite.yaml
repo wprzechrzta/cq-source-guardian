@@ -1,0 +1,18 @@
+kind: source
+spec:
+  name: 'guardian'
+  version: v1.0.0
+  destinations: [sqlite]
+  path: ./cq-source-guardian
+  registry: local
+  tables: ["*"]
+  spec:
+    key: "guardian-api-key-here" # https://bonobo.capi.gutools.co.uk/register/developer
+---
+kind: destination
+spec:
+  name: sqlite
+  path: cloudquery/sqlite
+  version: v2.10.5
+  spec:
+    connection_string: ./db.sqlite

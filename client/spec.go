@@ -1,14 +1,17 @@
 package client
 
+import "errors"
+
 type Spec struct {
-	// plugin spec goes here
+	Key string `json:"key"`
 }
 
 func (s *Spec) SetDefaults() {
-	// set defaults for the spec
 }
 
 func (s *Spec) Validate() error {
-	// validate the spec
+	if s.Key == "" {
+		return errors.New("key is required")
+	}
 	return nil
 }
