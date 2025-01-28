@@ -4,11 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
+	"strconv"
 )
 
-const defaultNewsURL = "https://content.guardianapis.com/"
+const defaultNewsURL = "https://content.guardianapis.com/search"
 
 var errMissingAPIKey = errors.New("api key is required")
 
@@ -80,10 +82,11 @@ func (c *Client) Search(term string) (*NewsResponse, error) {
 		params.Add("q", term)
 	}
 
-	params.Add("page-size", "20")
 	params.Add("api-key", c.apiKey)
 
-	resp, err := c.client.Get(fmt.Sprintf("%s?%s", c.apiURL, params.Encode()))
+	urlStr := fmt.Sprintf("%s?%s", c.apiURL, params.Encode())
+	log.Println(urlStr)
+	resp, err := c.client.Get(urlStr)
 	if err != nil {
 		return nil, fmt.Errorf("failed to fetch news: %w", err)
 	}
@@ -96,3 +99,26 @@ func (c *Client) Search(term string) (*NewsResponse, error) {
 	return &news, nil
 }
 
+// FetchPage fetches a page of news
+func (c *Client) FetchPage(query string, page int) ([]NewsItem, error) {
+	params := url.Values{}
+	if query != "" {
+		params.Add("q", query)
+	}
+	params.Add("page", strconv.Itoa(page))
+	params.Add("api-key", c.apiKey)
+
+	urlStr := fmt.Sprintf("%s?%s", c.apiURL, params.Encode())
+	log.Println(urlStr)
+	resp, err := c.client.Get(urlStr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch news: %w", err)
+	}
+	defer resp.Body.Close()
+
+	var news NewsResponse
+	if err := json.NewDecoder(resp.Body).Decode(&news); err != nil {
+		return nil, fmt.Errorf("failed to decode response: %w", err)
+	}
+	return news.Response.Results, nil
+}
